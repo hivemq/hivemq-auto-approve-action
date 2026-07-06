@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+
+# TypeScript build output (dist/ IS committed; lib/ is not)
+lib/
+
+# IntelliJ
+out/
+*.iml
+.idea/
+
+.java-version
+.DS_Store

@@ -1,0 +1,33 @@
+name: 'HiveMQ Auto-approve Release PRs'
+description: 'Auto-approve narrow release PRs based on team membership and a file/line allowlist; dismiss stale auto-approvals.'
+
+inputs:
+  allowed-team:
+    description: 'GitHub team slug (in the repository owner org). Only PRs opened by an active member are eligible.'
+    required: true
+  allowed-paths:
+    description: 'Newline-separated anchored JS regexes. Every changed file must match at least one. Empty disables the path gate.'
+    default: ''
+    required: false
+  allowed-lines:
+    description: 'Newline-separated anchored JS regexes. Every added/removed line must match at least one. Empty disables the line gate.'
+    default: ''
+    required: false
+  github-token:
+    description: 'Token whose identity performs the approval/dismissal (e.g. a service account). Needs pull-requests: write.'
+    required: true
+  reviewer-login:
+    description: 'Login of the approver identity (= the github-token owner). Used to find and dismiss its own prior auto-approvals.'
+    required: true
+
+outputs:
+  eligible:
+    description: '"true" if the PR met team + allowlist criteria and was approved, otherwise "false".'
+
+runs:
+  using: node20
+  main: dist/index.js
+
+branding:
+  icon: 'check-circle'
+  color: 'green'

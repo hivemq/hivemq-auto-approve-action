@@ -1,0 +1,31 @@
+{
+    $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+    extends: [
+        'local>hivemq/renovate-config:default.json5',
+    ],
+    baseBranchPatterns: [
+        'main',
+    ],
+    useBaseBranchConfig: 'merge',
+    branchPrefix: 'renovate/hivemq-auto-approve-action/',
+    addLabels: [
+        'engineering-platform-team',
+    ],
+    // This is a JS action: dist/ is a committed bundle of src/ + node_modules.
+    // When Renovate bumps an npm dependency, rebuild dist/ inside the same PR so
+    // the committed bundle stays in sync (the CI 'Verify dist/ is up to date'
+    // check would otherwise fail the PR).
+    // Requires the org Renovate bot to allowlist these commands
+    // (allowedPostUpgradeCommands). If it does not, a maintainer runs
+    // `npm ci && npm run build` and commits dist/ on the Renovate branch.
+    postUpgradeTasks: {
+        commands: [
+            'npm ci --ignore-scripts',
+            'npm run build',
+        ],
+        fileFilters: [
+            'dist/**',
+        ],
+        executionMode: 'branch',
+    },
+}
