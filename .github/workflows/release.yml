@@ -15,6 +15,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build bundle
+        run: npm run build
+
+      - name: Verify dist/ at this tag is fresh
+        run: |
+          if [ -n "$(git status --porcelain dist)" ]; then
+            echo "::error::dist/ at this tag is stale. Rebuild (npm run build), commit, and re-tag."
+            git diff --stat -- dist
+            exit 1
+          fi
+          echo "dist/ matches a fresh build."
+
       - name: Create release
         uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3
 

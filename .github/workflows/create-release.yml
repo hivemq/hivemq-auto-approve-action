@@ -1,0 +1,82 @@
+name: Create release
+
+# Manual release driver: builds the bundle, commits dist/ and the tag to main,
+# then lets release.yml (triggered by the tag push) publish the GitHub release
+# and move the major tag.
+#
+# Requires a RELEASE_TOKEN secret: a service account PAT or GitHub App token that
+#   (a) is listed as a bypass actor on the `main` ruleset (so it can push without
+#       a PR), and
+#   (b) is NOT the default GITHUB_TOKEN, so pushing the tag triggers release.yml.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version without leading v, e.g. 1.2.3'
+        required: true
+        type: string
+
+permissions:
+  contents: read # write/bypass rights come from RELEASE_TOKEN, not GITHUB_TOKEN
+
+jobs:
+  create-release:
+    name: Create release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ! printf '%s' "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::version must be X.Y.Z with no leading v (got '$VERSION')"
+            exit 1
+          fi
+
+      - name: Checkout main
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+      - name: Ensure tag is unused
+        env:
+          TAG: v${{ inputs.version }}
+        run: |
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null \
+             || git ls-remote --exit-code --tags origin "$TAG" >/dev/null 2>&1; then
+            echo "::error::tag $TAG already exists"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build bundle
+        run: npm run build
+
+      - name: Commit dist and push tag
+        env:
+          TAG: v${{ inputs.version }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          git config user.name "$ACTOR"
+          git config user.email "${ACTOR}@users.noreply.github.com"
+          git add dist
+          # --allow-empty: a release with no bundle change still gets a marker commit.
+          git commit -m "Release $TAG" --allow-empty
+          git tag "$TAG"
+          git push origin HEAD:main
+          git push origin "$TAG"
+          echo "Pushed $TAG; release.yml will publish the release and move the major tag."

@@ -100,8 +100,14 @@ npm test          # adversarial fixtures (version bump ok; extra line rejected; 
 npm run build     # bundles src/ -> dist/index.js via @vercel/ncc
 ```
 
-`dist/` is a committed bundle: GitHub runs `dist/index.js` directly at the referenced tag. CI fails if `dist/` is out of sync with `src/`. Renovate rebuilds `dist/` inside dependency-bump PRs via `postUpgradeTasks`.
+`dist/` is a committed bundle: GitHub runs `dist/index.js` directly at the referenced tag. It is refreshed at release time (see below), not on every PR, so `test.yml` only typechecks, tests, and builds. Between releases `dist/` on `main` may lag `src/`; that is fine because consumers use tagged releases, not `main`.
 
 ## Releasing
 
-Push a `vX.Y.Z` tag. The `Release` workflow creates the GitHub release and moves the floating `vX` major tag to it. Consumers pin `@vN` (or a commit SHA, which Renovate can bump).
+Preferred: run the **Create release** workflow (`workflow_dispatch`) with a `X.Y.Z` version. It checks the tag is unused, typechecks + tests + builds, commits the fresh `dist/`, and pushes the tag to `main`. The tag push triggers the **Release** workflow, which re-verifies `dist/` is fresh, creates the GitHub release, and moves the floating `vX` major tag.
+
+Manual fallback: push a `vX.Y.Z` tag yourself. **Release** still runs and refuses to publish if `dist/` at that tag is stale (rebuild, commit, re-tag).
+
+Consumers pin `@vN` (or a commit SHA, which Renovate can bump).
+
+`Create release` needs a `RELEASE_TOKEN` secret: a service account PAT or GitHub App that is a bypass actor on the `main` ruleset (to push without a PR) and is not the default `GITHUB_TOKEN` (so the tag push triggers `Release`).
