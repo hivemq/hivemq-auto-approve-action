@@ -110,4 +110,4 @@ Manual fallback: push a `vX.Y.Z` tag yourself. **Release** still runs and refuse
 
 Consumers pin `@vN` (or a commit SHA, which Renovate can bump).
 
-`Create release` needs a `RELEASE_TOKEN` secret: a service account PAT or GitHub App that is a bypass actor on the `main` ruleset (to push without a PR) and is not the default `GITHUB_TOKEN` (so the tag push triggers `Release`).
+`Create release` mints a short-lived token from the HiveMQ GitHub App (`#2892625`) via the org secret `GH_ACTIONS_REPO_ACCESS_TOKENS_PRIVATE_KEY`. That App must have `contents: write` on this repo and be a bypass actor on the `main` ruleset (to push without a PR). The App token is not the default `GITHUB_TOKEN`, so pushing the tag triggers `Release`.

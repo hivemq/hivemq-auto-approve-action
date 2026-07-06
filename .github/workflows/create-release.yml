@@ -4,10 +4,11 @@ name: Create release
 # then lets release.yml (triggered by the tag push) publish the GitHub release
 # and move the major tag.
 #
-# Requires a RELEASE_TOKEN secret: a service account PAT or GitHub App token that
-#   (a) is listed as a bypass actor on the `main` ruleset (so it can push without
-#       a PR), and
-#   (b) is NOT the default GITHUB_TOKEN, so pushing the tag triggers release.yml.
+# Auth: mints a short-lived token from the HiveMQ GitHub App (#2892625) via
+# GH_ACTIONS_REPO_ACCESS_TOKENS_PRIVATE_KEY. That App must:
+#   (a) have contents: write on this repo,
+#   (b) be a bypass actor on the `main` ruleset (so it can push without a PR).
+# The App token is not the default GITHUB_TOKEN, so pushing the tag triggers release.yml.
 on:
   workflow_dispatch:
     inputs:
@@ -33,12 +34,19 @@ jobs:
             exit 1
           fi
 
+      - name: Generate App token
+        id: app-token
+        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3.0.0
+        with:
+          app-id: 2892625
+          private-key: ${{ secrets.GH_ACTIONS_REPO_ACCESS_TOKENS_PRIVATE_KEY }}
+
       - name: Checkout main
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           ref: main
           fetch-depth: 0
-          token: ${{ secrets.RELEASE_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Ensure tag is unused
         env:
