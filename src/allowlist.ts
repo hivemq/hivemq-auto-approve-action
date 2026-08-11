@@ -1,4 +1,4 @@
-import yaml from 'js-yaml';
+import { load } from 'js-yaml';
 
 // Pure, side-effect-free eligibility logic. Kept separate from the GitHub glue
 // in main.ts so it can be unit-tested over adversarial diff fixtures.
@@ -27,7 +27,7 @@ export interface Evaluation {
 // Parse the `allowed-changes` input (a YAML list of { path, lines? }) into rules.
 // Throws on an empty list or a missing/invalid path.
 export function parseAllowedChanges(input: string): AllowedChange[] {
-  const parsed = yaml.load(input);
+  const parsed = load(input);
   if (!Array.isArray(parsed) || parsed.length === 0) {
     throw new Error('allowed-changes must be a non-empty YAML list of { path, lines? }');
   }
