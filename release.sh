@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Builds the action bundle, commits it if it changed, and creates a release tag.
+# Builds the action bundle, creates a release commit, and tags it.
 # Nothing is pushed: review the result, then push the branch and the tag.
 #
 # Usage: ./release.sh v1.2.3
@@ -8,6 +8,7 @@
 set -euo pipefail
 
 readonly TAG="${1:-}"
+readonly VERSION="${TAG#v}"
 readonly RELEASE_BRANCH="main"
 readonly DIST_DIR="dist"
 
@@ -27,7 +28,6 @@ if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
     die "tag '${TAG}' already exists locally"
 fi
 
-git fetch --quiet origin --tags
 if [[ -n "$(git ls-remote --tags origin "refs/tags/${TAG}")" ]]; then
     die "tag '${TAG}' already exists on origin"
 fi
@@ -45,13 +45,12 @@ echo "Building the action bundle"
 npm ci
 npm run all
 
-if [[ -n "$(git status --porcelain "${DIST_DIR}")" ]]; then
-    echo "Bundle changed, creating the release commit"
-    git add "${DIST_DIR}"
-    git commit --message "chore: release ${TAG}"
-else
-    echo "Bundle is unchanged, nothing to commit"
-fi
+echo "Setting the package version to ${VERSION}"
+npm version "${VERSION}" --no-git-tag-version --allow-same-version >/dev/null
+
+echo "Creating the release commit"
+git add package.json package-lock.json "${DIST_DIR}"
+git commit --message "chore: release ${TAG}"
 
 git tag --annotate "${TAG}" --message "Release ${TAG}"
 
