@@ -1,6 +1,6 @@
 {
   "name": "hivemq-auto-approve-action",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Auto-approve narrow release PRs based on team membership and a file/line allowlist.",
   "main": "dist/index.js",
