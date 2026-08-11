@@ -39679,7 +39679,7 @@ function eventsToAst(events, options) {
 
 
 //# sourceMappingURL=js-yaml.mjs.map
-;// CONCATENATED MODULE: ./src/allowlist.ts
+;// CONCATENATED MODULE: ./lib/allowlist.js
 
 // Parse the `allowed-changes` input (a YAML list of { path, lines? }) into rules.
 // Throws on an empty list or a missing/invalid path.
@@ -39753,7 +39753,7 @@ function evaluate(files, rules) {
     return { eligible: reasons.length === 0, reasons };
 }
 
-;// CONCATENATED MODULE: ./src/main.ts
+;// CONCATENATED MODULE: ./lib/main.js
 
 
 
