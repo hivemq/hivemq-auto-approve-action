@@ -19,6 +19,16 @@ inputs:
   reviewer-login:
     description: 'Login of the approver identity (= the github-token owner). Used to find and dismiss its own prior auto-approvals.'
     required: true
+  dismiss-stale:
+    description: >
+      Whether an ineligible verdict dismisses this reviewer's earlier
+      approvals. Set to false for every step but the last when a job chains
+      several policies, so an ineligible policy does not dismiss the approval
+      another policy just granted. The last step must keep it true, and must
+      not be skippable for any reason other than an earlier step having
+      approved, otherwise a stale approval survives.
+    required: false
+    default: 'true'
 
 outputs:
   eligible:

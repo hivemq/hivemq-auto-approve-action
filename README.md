@@ -43,6 +43,7 @@ A complete caller, including the `status` aggregator job used as the required br
 | `allowed-changes` | yes | YAML list of rules `{ path: <regex>, lines?: <regex> }`. At least one rule; `path` is mandatory, `lines` optional. Every changed file must match one rule by `path`; if that rule has `lines`, every added/removed line in the file must match it. |
 | `github-token` | yes | Token whose identity approves/dismisses. Needs `pull-requests: write`. |
 | `reviewer-login` | yes | Login of the `github-token` owner; used to find and dismiss its own prior approvals. |
+| `dismiss-stale` | no (default `true`) | Whether an ineligible verdict dismisses this reviewer's earlier approvals. Set to `false` for every step but the last when a job chains several policies. See [Chaining several policies](#chaining-several-policies). |
 
 ### Output
 
@@ -79,6 +80,41 @@ allowed-changes: |
   - path: '^generated/version-info\.json$'
   - path: '^releases/.+\.md$'
 ```
+
+## Chaining several policies
+
+A repository can grant different teams different scopes by running the action once per policy in the same job. All steps share one `reviewer-login`, so an ineligible step would otherwise dismiss the approval another step just granted. Two rules make a chain behave:
+
+1. Every step except the last sets `dismiss-stale: false`.
+2. Gate each step on the previous one not having approved, and let the last step be the one that dismisses. That last step must not carry a condition of its own (a branch filter, for example), because a skipped step cannot dismiss and a stale approval would survive.
+
+```yaml
+steps:
+  # Policy A, restricted to some branches, so it cannot be the dismissing step.
+  - id: policy-a
+    if: github.event.pull_request.base.ref != 'protected-branch'
+    uses: hivemq/hivemq-auto-approve-action@v1
+    with:
+      allowed-team: team-a
+      allowed-changes: |
+        - path: '^docs/.+\.md$'
+      dismiss-stale: false
+      github-token: ${{ secrets.SERVICE_ACCOUNT_TOKEN }}
+      reviewer-login: ${{ secrets.SERVICE_ACCOUNT_LOGIN }}
+
+  # Policy B, last step, so it dismisses. Its only condition is the gate on the
+  # step above, so it runs whenever that step did not approve.
+  - if: steps.policy-a.outputs.eligible != 'true'
+    uses: hivemq/hivemq-auto-approve-action@v1
+    with:
+      allowed-team: team-b
+      allowed-changes: |
+        - path: '^generated/version\.json$'
+      github-token: ${{ secrets.SERVICE_ACCOUNT_TOKEN }}
+      reviewer-login: ${{ secrets.SERVICE_ACCOUNT_LOGIN }}
+```
+
+Order the steps so that the one with a branch filter comes first. On `protected-branch` policy A is skipped, its `eligible` output is empty, the gate passes, and policy B still evaluates and still dismisses. Reverse the two and a PR on that branch that stops qualifying keeps its approval, because the only step that could have dismissed it never ran.
 
 ## Security notes
 

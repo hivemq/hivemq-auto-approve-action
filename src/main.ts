@@ -1,11 +1,13 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
 import { evaluate, parseAllowedChanges, type ChangedFile } from './allowlist';
+import { decideReviewAction } from './decision';
 
 async function run(): Promise<void> {
   const allowedTeam = core.getInput('allowed-team', { required: true });
   const token = core.getInput('github-token', { required: true });
   const reviewerLogin = core.getInput('reviewer-login', { required: true });
+  const dismissStale = core.getBooleanInput('dismiss-stale');
   const rules = parseAllowedChanges(core.getInput('allowed-changes', { required: true }));
 
   const pr = github.context.payload.pull_request;
@@ -73,20 +75,22 @@ async function run(): Promise<void> {
     (r) => r.user?.login === reviewerLogin && r.state === 'APPROVED',
   );
 
-  if (eligible) {
-    if (ownApprovals.length > 0) {
-      core.info(`${reviewerLogin} already has an active approval; nothing to do.`);
-    } else {
-      await octokit.rest.pulls.createReview({
-        owner,
-        repo,
-        pull_number: prNumber,
-        event: 'APPROVE',
-        body: `Auto-approved: author is an active member of ${owner}/${allowedTeam} and only allowlisted files and lines were changed.`,
-      });
-      core.info('Approved.');
-    }
-  } else {
+  const action = decideReviewAction({
+    eligible,
+    dismissStale,
+    hasOwnApproval: ownApprovals.length > 0,
+  });
+
+  if (action === 'approve') {
+    await octokit.rest.pulls.createReview({
+      owner,
+      repo,
+      pull_number: prNumber,
+      event: 'APPROVE',
+      body: `Auto-approved: author is an active member of ${owner}/${allowedTeam} and only allowlisted files and lines were changed.`,
+    });
+    core.info('Approved.');
+  } else if (action === 'dismiss') {
     // Dismiss any stale auto-approvals so a previously-eligible PR that changed
     // does not keep a satisfying approval.
     for (const r of ownApprovals) {
@@ -99,6 +103,13 @@ async function run(): Promise<void> {
       });
       core.info(`Dismissed stale approval ${r.id}.`);
     }
+  } else if (eligible) {
+    core.info(`${reviewerLogin} already has an active approval; nothing to do.`);
+  } else if (!dismissStale) {
+    // A later step in this job evaluates another policy and owns the dismissal.
+    core.info('Not eligible; dismiss-stale is false, leaving existing approvals alone.');
+  } else {
+    core.info('Not eligible; this reviewer has no approval to dismiss.');
   }
 
   core.setOutput('eligible', String(eligible));
