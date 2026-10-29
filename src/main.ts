@@ -1,6 +1,7 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
 import { evaluate, parseAllowedChanges, type ChangedFile } from './allowlist';
+import { disableBrotli } from './brotli';
 import { decideReviewAction } from './decision';
 
 async function run(): Promise<void> {
@@ -20,6 +21,7 @@ async function run(): Promise<void> {
   const prNumber = pr.number;
   const author = pr.user.login as string;
   const octokit = github.getOctokit(token);
+  disableBrotli(octokit);
 
   // Skip fork PRs (their token would be empty).
   const headRepo = pr.head?.repo?.full_name as string | undefined;
