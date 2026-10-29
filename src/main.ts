@@ -3,6 +3,7 @@ import * as github from '@actions/github';
 import { evaluate, parseAllowedChanges, type ChangedFile } from './allowlist';
 import { disableBrotli } from './brotli';
 import { decideReviewAction } from './decision';
+import { isActiveMember } from './membership';
 
 async function run(): Promise<void> {
   const allowedTeam = core.getInput('allowed-team', { required: true });
@@ -31,18 +32,7 @@ async function run(): Promise<void> {
     return;
   }
 
-  // Team membership check.
-  let isMember = false;
-  try {
-    const { data } = await octokit.rest.teams.getMembershipForUserInOrg({
-      org: owner,
-      team_slug: allowedTeam,
-      username: author,
-    });
-    isMember = data.state === 'active';
-  } catch {
-    isMember = false;
-  }
+  const isMember = await isActiveMember(octokit, owner, allowedTeam, author);
 
   let eligible = false;
   if (!isMember) {
